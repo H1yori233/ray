@@ -61,7 +61,12 @@ class FootsiesBinary:
             self.full_download_dir / str.split(self.url, sep="/")[-1]
         )
         self.full_extract_dir = Path(config["binary_extract_dir"]).resolve()
-        self.renamed_path = self.full_extract_dir / "footsies_binaries"
+
+        # Use different folder names for headless vs windowed binaries to avoid conflicts
+        if self.binary_to_download in ["linux_server", "mac_headless"]:
+            self.renamed_path = self.full_extract_dir / "footsies_binaries_headless"
+        else:  # linux_windowed or mac_windowed
+            self.renamed_path = self.full_extract_dir / "footsies_binaries_windowed"
 
     @staticmethod
     def _add_executable_permission(binary_path: Path) -> None:
@@ -96,7 +101,14 @@ class FootsiesBinary:
             self.binary_to_download == "linux_server"
             or self.binary_to_download == "linux_windowed"
         ):
-            process = subprocess.Popen([game_binary_path, "--port", str(self.port)])
+            # For linux_server (headless), add -batchmode and -nographics flags
+            # For linux_windowed, don't add these flags to allow window display
+            if self.binary_to_download == "linux_server":
+                process = subprocess.Popen(
+                    [game_binary_path, "--port", str(self.port), "-batchmode", "-nographics"]
+                )
+            else:  # linux_windowed
+                process = subprocess.Popen([game_binary_path, "--port", str(self.port)])
         else:
             process = subprocess.Popen(
                 [

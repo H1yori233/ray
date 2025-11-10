@@ -242,9 +242,23 @@ class MixManagerCallback(RLlibCallback):
         new_module_id = None
         new_module_spec = None
 
-        win_rate = evaluation_metrics[ENV_RUNNER_RESULTS][
-            f"footsies/eval/win_rates/{self.main_policy}/vs_any"
-        ]
+        env_metrics = evaluation_metrics.get(ENV_RUNNER_RESULTS)
+        if not env_metrics:
+            logger.warning(
+                f"RLlib {self.__class__.__name__}: No evaluation env-runner results "
+                f"available. Skipping mix update for this iteration."
+            )
+            return
+
+        win_rate_key = f"footsies/eval/win_rates/{self.main_policy}/vs_any"
+        if win_rate_key not in env_metrics:
+            logger.warning(
+                f"RLlib {self.__class__.__name__}: Win-rate metric '{win_rate_key}' "
+                f"missing in evaluation results. Skipping mix update."
+            )
+            return
+
+        win_rate = env_metrics[win_rate_key]
 
         if win_rate > self.win_rate_threshold:
             logger.info(
