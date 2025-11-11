@@ -159,11 +159,12 @@ class MetricsLoggerCallback(RLlibCallback):
                 f"Metrics logging for this episode will be skipped."
             )
             return
-
+        
         if p1_dead and p2_dead:
             metrics_logger.log_value(
                 key=f"footsies/{stage}/both_dead/{self.main_policy}/vs_{opponent_id}",
-                value=1,
+                # value=1,
+                value=0,
                 reduce="mean",
                 window=100,
                 clear_on_reduce=True,
@@ -171,7 +172,8 @@ class MetricsLoggerCallback(RLlibCallback):
         elif not p1_dead and not p2_dead:
             metrics_logger.log_value(
                 key=f"footsies/{stage}/both_alive/{self.main_policy}/vs_{opponent_id}",
-                value=1,
+                # value=1,
+                value=0,
                 reduce="mean",
                 window=100,
                 clear_on_reduce=True,

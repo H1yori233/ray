@@ -105,10 +105,16 @@ class FootsiesBinary:
             # For linux_windowed, don't add these flags to allow window display
             if self.binary_to_download == "linux_server":
                 process = subprocess.Popen(
-                    [game_binary_path, "--port", str(self.port), "-batchmode", "-nographics"]
+                    [game_binary_path, "--port", str(self.port), "-batchmode", "-nographics"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
             else:  # linux_windowed
-                process = subprocess.Popen([game_binary_path, "--port", str(self.port)])
+                process = subprocess.Popen(
+                    [game_binary_path, "--port", str(self.port)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
         else:
             process = subprocess.Popen(
                 [
@@ -118,6 +124,8 @@ class FootsiesBinary:
                     "--port",
                     str(self.port),
                 ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
 
         # check if the game server is running correctly
