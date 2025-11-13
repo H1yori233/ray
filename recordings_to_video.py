@@ -23,20 +23,29 @@ def parse_tags(path):
 
 def format_input(value):
     try:
-        action = int(value)
+        bits = int(value)
     except ValueError:
         return value
 
-    action_names = {
-        0: "None",
-        1: "Back",
-        2: "Forward",
-        3: "Attack",
-        4: "Back+Attack",
-        5: "Forward+Attack",
-        6: "Special"
-    }
-    return action_names.get(action, f"Unknown({action})")
+    has_left = (bits & 1) != 0
+    has_right = (bits & 2) != 0
+    has_attack = (bits & 4) != 0
+
+    parts = []
+    if has_left and has_right:
+        parts.append("L+R")
+    elif has_left:
+        parts.append("Left")
+    elif has_right:
+        parts.append("Right")
+
+    if has_attack:
+        parts.append("Attack")
+
+    if not parts:
+        return "None"
+
+    return "+".join(parts)
 
 
 def annotate(img, frame_id, p1_input, p2_input):

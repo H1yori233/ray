@@ -122,8 +122,6 @@ namespace Footsies
 					}
 					int num = (int)request.P1Action;
 					int num2 = (int)request.P2Action;
-					FootsiesGameServiceImpl.EnvAction envAction = FootsiesGameServiceImpl.ConvertInputToEnvAction(num, true);
-					FootsiesGameServiceImpl.EnvAction envAction2 = FootsiesGameServiceImpl.ConvertInputToEnvAction(num2, false);
 					this.battleCore.SetP1InputData(num);
 					this.battleCore.SetP2InputData(num2);
 					for (int i = 0; i < (int)request.NFrames; i++)
@@ -134,7 +132,7 @@ namespace Footsies
 					this.battleCore.ClearP1InputData();
 					this.battleCore.ClearP2InputData();
 					GameState gameState = this.battleCore.GetGameState();
-					UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine((int)envAction, (int)envAction2, (int)gameState.FrameCount));
+					UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine(num, num2, (int)gameState.FrameCount));
 					taskCompletionSource.SetResult(gameState);
 				});
 				task = taskCompletionSource.Task;
@@ -217,69 +215,6 @@ namespace Footsies
 			UnityMainThreadDispatcher.Instance.Enqueue(action);
 		}
 
-		// Token: 0x060002E3 RID: 739
-		private static FootsiesGameServiceImpl.EnvAction ConvertInputToEnvAction(int input, bool isPlayerOne)
-		{
-			bool flag = (input & (int)InputDefine.Attack) != 0;
-			bool flag2 = (input & (int)InputDefine.Left) != 0;
-			bool flag3 = (input & (int)InputDefine.Right) != 0;
-			if (flag)
-			{
-				bool flag4 = flag2 && !flag3;
-				bool flag5 = flag3 && !flag2;
-				if (isPlayerOne)
-				{
-					if (flag4)
-					{
-						return FootsiesGameServiceImpl.EnvAction.BackAttack;
-					}
-					if (flag5)
-					{
-						return FootsiesGameServiceImpl.EnvAction.ForwardAttack;
-					}
-				}
-				else
-				{
-					if (flag4)
-					{
-						return FootsiesGameServiceImpl.EnvAction.ForwardAttack;
-					}
-					if (flag5)
-					{
-						return FootsiesGameServiceImpl.EnvAction.BackAttack;
-					}
-				}
-				return FootsiesGameServiceImpl.EnvAction.Attack;
-			}
-			if (flag2 && flag3)
-			{
-				return FootsiesGameServiceImpl.EnvAction.None;
-			}
-			if (isPlayerOne)
-			{
-				if (flag2)
-				{
-					return FootsiesGameServiceImpl.EnvAction.Back;
-				}
-				if (flag3)
-				{
-					return FootsiesGameServiceImpl.EnvAction.Forward;
-				}
-			}
-			else
-			{
-				if (flag2)
-				{
-					return FootsiesGameServiceImpl.EnvAction.Forward;
-				}
-				if (flag3)
-				{
-					return FootsiesGameServiceImpl.EnvAction.Back;
-				}
-			}
-			return FootsiesGameServiceImpl.EnvAction.None;
-		}
-
 		// Token: 0x06000192 RID: 402
 		private void LogGameState(GameState gameState)
 		{
@@ -314,12 +249,12 @@ namespace Footsies
 		}
 
 		// Token: 0x060002E3 RID: 739
-		private IEnumerator CaptureScreenshotCoroutine(int p1EnvAction, int p2EnvAction, int frameCount)
+		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int frameCount)
 		{
 			yield return new WaitForEndOfFrame();
 			try
 			{
-				string filename = string.Format("{0:D06}_{1}_{2}.png", frameCount, p1EnvAction, p2EnvAction);
+				string filename = string.Format("{0:D06}_{1}_{2}.png", frameCount, p1InputBits, p2InputBits);
 				string directory = "/mnt/d/Code/ray/recordings";
 				if (!Directory.Exists(directory))
 				{
@@ -349,24 +284,5 @@ namespace Footsies
 
 		// Token: 0x04000126 RID: 294
 		private BattleGUI battleGUI;
-
-		// Token: 0x0200002C RID: 44
-		private enum EnvAction
-		{
-			// Token: 0x04000127 RID: 295
-			None,
-			// Token: 0x04000128 RID: 296
-			Back,
-			// Token: 0x04000129 RID: 297
-			Forward,
-			// Token: 0x0400012A RID: 298
-			Attack,
-			// Token: 0x0400012B RID: 299
-			BackAttack,
-			// Token: 0x0400012C RID: 300
-			ForwardAttack,
-			// Token: 0x0400012D RID: 301
-			SpecialCharge
-		}
 	}
 }
