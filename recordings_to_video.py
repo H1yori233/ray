@@ -1,3 +1,4 @@
+import csv
 import glob
 import os
 import re
@@ -7,18 +8,8 @@ import cv2
 
 def parse_tags(path):
     name = os.path.splitext(os.path.basename(path))[0]
-    match = re.match(r"(\d+)_([0-9]+)_([0-9]+)$", name)
-    if match:
-        return match.group(1), match.group(2), match.group(3)
-    match = re.match(r"frame_(\d+)_([0-9]+)_([0-9]+)$", name)
-    if match:
-        return match.group(1), match.group(2), match.group(3)
-    parts = name.split("_")
-    if len(parts) == 3:
-        return parts[0], parts[1], parts[2]
-    if len(parts) == 2:
-        return parts[0], parts[1], "0"
-    return parts[0] if parts else "0", "0", "0"
+    match = re.match(r"episode(\d+)_(\d+)_([0-9]+)_([0-9]+)$", name)
+    return match.group(1), match.group(2), match.group(3), match.group(4)
 
 
 def format_input(value):
@@ -74,9 +65,14 @@ def annotate(img, frame_id, p1_input, p2_input):
 
 
 def main():
-    image_paths = sorted(glob.glob(os.path.join("recordings", "*.png")))
+    image_paths = glob.glob(os.path.join("recordings", "*.png"))
     if not image_paths:
         raise SystemExit("no png files found in recordings/")
+
+    image_paths = sorted(
+        image_paths, key=lambda p: (int(parse_tags(p)[0]), int(parse_tags(p)[1]))
+    )
+
     first = cv2.imread(image_paths[0])
     if first is None:
         raise SystemExit(f"failed to read {image_paths[0]}")
@@ -88,13 +84,26 @@ def main():
         fps,
         (width, height),
     )
-    for path in image_paths:
-        frame = cv2.imread(path)
-        if frame is None:
-            continue
-        frame_id, p1, p2 = parse_tags(path)
-        annotate(frame, frame_id, p1, p2)
-        writer.write(frame)
+    csv_path = os.path.join("recordings", "recordings_actions.csv")
+    with open(csv_path, "w", newline="") as csv_file:
+        fieldnames = ["frame", "p1_action", "p2_action"]
+        writer_csv = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer_csv.writeheader()
+
+        for path in image_paths:
+            frame = cv2.imread(path)
+            if frame is None:
+                continue
+            episode, frame_id, p1, p2 = parse_tags(path)
+            annotate(frame, frame_id, p1, p2)
+            writer.write(frame)
+            writer_csv.writerow(
+                {
+                    "frame": int(frame_id),
+                    "p1_action": int(p1),
+                    "p2_action": int(p2),
+                }
+            )
     writer.release()
 
 

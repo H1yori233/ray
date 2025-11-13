@@ -23,6 +23,7 @@ namespace Footsies
 						Debug.LogError("GameManager instance is null");
 						return;
 					}
+					this.episodeNumber++;
 					Singleton<GameManager>.Instance.StartGame();
 				});
 				result = Task.FromResult<Empty>(new Empty());
@@ -254,7 +255,13 @@ namespace Footsies
 			yield return new WaitForEndOfFrame();
 			try
 			{
-				string filename = string.Format("{0:D06}_{1}_{2}.png", frameCount, p1InputBits, p2InputBits);
+				string filename = string.Format("episode{0}_{1:D06}_{2}_{3}.png", new object[]
+				{
+					this.episodeNumber,
+					frameCount,
+					p1InputBits,
+					p2InputBits
+				});
 				string directory = "/mnt/d/Code/ray/recordings";
 				if (!Directory.Exists(directory))
 				{
@@ -284,5 +291,8 @@ namespace Footsies
 
 		// Token: 0x04000126 RID: 294
 		private BattleGUI battleGUI;
+
+		// Token: 0x0400026B RID: 619
+		private int episodeNumber;
 	}
 }
