@@ -4,3 +4,5 @@ python record_footsies.py \
     --binary-download-dir ./footsies_binary \
     --binary-extract-dir ./footsies_binary | tee log.txt
 python recordings_to_video.py
+python filter_dataset.py
+python visualize_filter.py
