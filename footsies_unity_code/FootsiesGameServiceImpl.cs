@@ -10,7 +10,7 @@ namespace Footsies
 	// Token: 0x0200003B RID: 59
 	public class FootsiesGameServiceImpl : FootsiesGameService.FootsiesGameServiceBase
 	{
-		// Token: 0x060001DC RID: 476
+		// Token: 0x060001DC RID: 476 RVA: 0x00009A30 File Offset: 0x00007C30
 		public override Task<Empty> StartGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -36,7 +36,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DD RID: 477
+		// Token: 0x060001DD RID: 477 RVA: 0x00009A90 File Offset: 0x00007C90
 		public override Task<Empty> ResetGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -57,7 +57,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DE RID: 478
+		// Token: 0x060001DE RID: 478 RVA: 0x00009AF0 File Offset: 0x00007CF0
 		public override Task<BoolValue> IsReady(Empty request, ServerCallContext context)
 		{
 			Task<BoolValue> task;
@@ -86,51 +86,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001DF RID: 479
+		// Token: 0x060001DF RID: 479 RVA: 0x00003C40 File Offset: 0x00001E40
 		private bool CheckIfReady()
 		{
 			return Singleton<GameManager>.Instance != null && this.battleCore != null;
 		}
 
-		// Token: 0x02000060 RID: custom
-		private enum ActionCategory
-		{
-			Idle,
-			Move,
-			Attack
-		}
-
-		// Token: 0x060001DE-Helper
-		private ActionCategory GetExpectedCategoryFromBits(int bits)
-		{
-			bool hasAttack = (bits & FootsiesGameServiceImpl.AttackBit) != 0;
-			bool hasMove = (bits & (FootsiesGameServiceImpl.LeftBit | FootsiesGameServiceImpl.RightBit)) != 0;
-			if (hasAttack)
-			{
-				return ActionCategory.Attack;
-			}
-			if (hasMove)
-			{
-				return ActionCategory.Move;
-			}
-			return ActionCategory.Idle;
-		}
-
-		// Token: 0x060001DE-Helper
-		private ActionCategory GetActualCategoryFromActionId(int actionId)
-		{
-			if (actionId == (int)CommonActionID.FORWARD || actionId == (int)CommonActionID.BACKWARD || actionId == (int)CommonActionID.DASH_FORWARD || actionId == (int)CommonActionID.DASH_BACKWARD)
-			{
-				return ActionCategory.Move;
-			}
-			if (actionId == (int)CommonActionID.N_ATTACK || actionId == (int)CommonActionID.B_ATTACK || actionId == (int)CommonActionID.N_SPECIAL || actionId == (int)CommonActionID.B_SPECIAL || actionId == (int)CommonActionID.DAMAGE)
-			{
-				return ActionCategory.Attack;
-			}
-			return ActionCategory.Idle;
-		}
-
-		// Token: 0x060001E0 RID: 480
+		// Token: 0x060001E0 RID: 480 RVA: 0x00009B68 File Offset: 0x00007D68
 		public override Task<GameState> StepNFrames(StepInput request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -161,9 +123,9 @@ namespace Footsies
 					}
 					int num = (int)request.P1Action;
 					int num2 = (int)request.P2Action;
-					GameState preState = this.battleCore.GetGameState();
-					bool p1Valid = this.IsPlayerInputValid(preState.Player1);
-					bool p2Valid = this.IsPlayerInputValid(preState.Player2);
+					GameState gameState = this.battleCore.GetGameState();
+					bool p1Valid = this.IsPlayerInputValid(gameState.Player1);
+					bool p2Valid = this.IsPlayerInputValid(gameState.Player2);
 					this.battleCore.SetP1InputData(num);
 					this.battleCore.SetP2InputData(num2);
 					for (int i = 0; i < (int)request.NFrames; i++)
@@ -173,17 +135,9 @@ namespace Footsies
 					}
 					this.battleCore.ClearP1InputData();
 					this.battleCore.ClearP2InputData();
-					GameState gameState = this.battleCore.GetGameState();
-					ActionCategory expectedP1 = this.GetExpectedCategoryFromBits(num);
-					ActionCategory expectedP2 = this.GetExpectedCategoryFromBits(num2);
-					ActionCategory actualP1 = this.GetActualCategoryFromActionId((int)gameState.Player1.CurrentActionId);
-					ActionCategory actualP2 = this.GetActualCategoryFromActionId((int)gameState.Player2.CurrentActionId);
-					bool shouldCapture = (p1Valid && expectedP1 == actualP1) || (p2Valid && expectedP2 == actualP2);
-					if (shouldCapture)
-					{
-						UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine(num, num2, (int)gameState.FrameCount, p1Valid, p2Valid, (int)expectedP1, (int)actualP1, (int)expectedP2, (int)actualP2));
-					}
-					taskCompletionSource.SetResult(gameState);
+					GameState gameState2 = this.battleCore.GetGameState();
+					UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine(num, num2, (int)gameState2.FrameCount, p1Valid, p2Valid));
+					taskCompletionSource.SetResult(gameState2);
 				});
 				task = taskCompletionSource.Task;
 			}
@@ -195,7 +149,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E1 RID: 481
+		// Token: 0x060001E1 RID: 481 RVA: 0x00009BF4 File Offset: 0x00007DF4
 		public override Task<GameState> GetState(Empty request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -227,7 +181,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E2 RID: 482
+		// Token: 0x060001E2 RID: 482 RVA: 0x00009C6C File Offset: 0x00007E6C
 		public override Task<EncodedGameState> GetEncodedState(Empty request, ServerCallContext context)
 		{
 			Task<EncodedGameState> task;
@@ -259,13 +213,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E3 RID: 483
+		// Token: 0x060001E3 RID: 483 RVA: 0x00003C5D File Offset: 0x00001E5D
 		private void EnqueueToMainThread(Action action)
 		{
 			UnityMainThreadDispatcher.Instance.Enqueue(action);
 		}
 
-		// Token: 0x060001E4 RID: 484
+		// Token: 0x060001E4 RID: 484 RVA: 0x00009CE4 File Offset: 0x00007EE4
 		private void LogGameState(GameState gameState)
 		{
 			Debug.Log(string.Format("GameState - FrameCount: {0}, RoundState: {1}", gameState.FrameCount, gameState.RoundState));
@@ -273,7 +227,7 @@ namespace Footsies
 			this.LogPlayerState("Player 2", gameState.Player2);
 		}
 
-		// Token: 0x060001E5 RID: 485
+		// Token: 0x060001E5 RID: 485 RVA: 0x00009D38 File Offset: 0x00007F38
 		private void LogPlayerState(string playerName, PlayerState playerState)
 		{
 			Debug.Log(string.Concat(new string[]
@@ -298,50 +252,46 @@ namespace Footsies
 			}));
 		}
 
-		// Token: 0x060001E9 RID: 489
+		// Token: 0x060001E9 RID: 489 RVA: 0x00003CB7 File Offset: 0x00001EB7
 		private bool IsPlayerInputValid(PlayerState player)
 		{
 			return !player.IsInHitStun && (player.IsActionEnd || player.IsAlwaysCancelable);
 		}
 
-		// Token: 0x0600025E RID: 606
-		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int frameCount, bool p1Valid, bool p2Valid, int p1ExpectedCategory, int p1ActualCategory, int p2ExpectedCategory, int p2ActualCategory)
+		// Token: 0x060001EA RID: 490 RVA: 0x00003CD3 File Offset: 0x00001ED3
+		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int frameCount, bool p1Valid, bool p2Valid)
 		{
 			yield return new WaitForEndOfFrame();
 			try
 			{
-				string filename = string.Format("episode{0}_{1:D06}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_{9}.png", new object[]
+				string path = string.Format("episode{0}_{1:D06}_{2}_{3}_{4}_{5}.png", new object[]
 				{
 					this.episodeNumber,
 					frameCount,
 					p1InputBits,
 					p2InputBits,
 					p1Valid ? 1 : 0,
-					p2Valid ? 1 : 0,
-					p1ExpectedCategory,
-					p1ActualCategory,
-					p2ExpectedCategory,
-					p2ActualCategory
+					p2Valid ? 1 : 0
 				});
-				string directory = "/mnt/d/Code/ray/recordings";
-				if (!Directory.Exists(directory))
+				string text = "/mnt/d/Code/ray/recordings";
+				if (!Directory.Exists(text))
 				{
-					Directory.CreateDirectory(directory);
+					Directory.CreateDirectory(text);
 				}
-				string savePath = Path.Combine(directory, filename);
+				string path2 = Path.Combine(text, path);
 				int width = Screen.width;
 				int height = Screen.height;
 				Texture2D texture2D = new Texture2D(width, height, TextureFormat.RGB24, false);
 				texture2D.ReadPixels(new Rect(0f, 0f, (float)width, (float)height), 0, 0);
 				texture2D.Apply();
 				byte[] bytes = texture2D.EncodeToPNG();
-				File.WriteAllBytes(savePath, bytes);
+				File.WriteAllBytes(path2, bytes);
 				UnityEngine.Object.Destroy(texture2D);
 				yield break;
 			}
-			catch (Exception ex)
+			catch (Exception arg)
 			{
-				Debug.LogError(string.Format("CaptureScreenshot failed: {0}", ex));
+				Debug.LogError(string.Format("CaptureScreenshot failed: {0}", arg));
 				yield break;
 			}
 			yield break;
@@ -355,14 +305,5 @@ namespace Footsies
 
 		// Token: 0x04000155 RID: 341
 		private int episodeNumber;
-
-		// Token: 0x04000156 RID: custom
-		private const int LeftBit = 1;
-
-		// Token: 0x04000157 RID: custom
-		private const int RightBit = 2;
-
-		// Token: 0x04000158 RID: custom
-		private const int AttackBit = 4;
 	}
 }
