@@ -8,8 +8,20 @@ import cv2
 
 def parse_tags(path):
     name = os.path.splitext(os.path.basename(path))[0]
-    match = re.match(r"episode(\d+)_(\d+)_([0-9]+)_([0-9]+)$", name)
-    return match.group(1), match.group(2), match.group(3), match.group(4)
+    match = re.match(r"episode(\d+)_(\d+)_([0-9]+)_([0-9]+)(?:_(\d)_(\d))?$", name)
+    if not match:
+        raise ValueError(f"unexpected filename format: {name}")
+
+    p1_valid = match.group(5)
+    p2_valid = match.group(6)
+    return (
+        match.group(1),
+        match.group(2),
+        match.group(3),
+        match.group(4),
+        p1_valid != "0" if p1_valid is not None else True,
+        p2_valid != "0" if p2_valid is not None else True,
+    )
 
 
 def format_input(value):
@@ -39,7 +51,7 @@ def format_input(value):
     return "+".join(parts)
 
 
-def annotate(img, frame_id, p1_input, p2_input):
+def annotate(img, frame_id, p1_input, p2_input, p1_valid=True, p2_valid=True):
     h, w = img.shape[:2]
     bar_height = max(32, h // 20)
     cv2.rectangle(img, (0, 0), (w, bar_height), (0, 0, 0), -1)
@@ -48,20 +60,23 @@ def annotate(img, frame_id, p1_input, p2_input):
     thickness = max(1, int(scale * 2))
     baseline = int(bar_height * 0.75)
 
-    def draw_text(text, x, align="left"):
+    def draw_text(text, x, align="left", color=(255, 255, 255)):
         size = cv2.getTextSize(text, font, scale, thickness)[0]
         if align == "center":
             x -= size[0] // 2
         elif align == "right":
             x -= size[0]
-        cv2.putText(img, text, (x, baseline), font, scale, (255, 255, 255), thickness, cv2.LINE_AA)
+        cv2.putText(img, text, (x, baseline), font, scale, color, thickness, cv2.LINE_AA)
 
     p1_action = format_input(p1_input)
     p2_action = format_input(p2_input)
 
-    draw_text(f"P1: {p1_action}", 10, "left")
+    p1_color = (0, 255, 0) if p1_valid else (128, 128, 128)
+    p2_color = (0, 255, 0) if p2_valid else (128, 128, 128)
+
+    draw_text(f"P1: {p1_action}", 10, "left", p1_color)
     draw_text(f"Frame {frame_id}", w // 2, "center")
-    draw_text(f"P2: {p2_action}", w - 10, "right")
+    draw_text(f"P2: {p2_action}", w - 10, "right", p2_color)
 
 
 def main():
@@ -70,7 +85,11 @@ def main():
         raise SystemExit("no png files found in recordings/")
 
     image_paths = sorted(
-        image_paths, key=lambda p: (int(parse_tags(p)[0]), int(parse_tags(p)[1]))
+        image_paths,
+        key=lambda p: (
+            int(parse_tags(p)[0]),
+            int(parse_tags(p)[1]),
+        ),
     )
 
     first = cv2.imread(image_paths[0])
@@ -94,8 +113,8 @@ def main():
             frame = cv2.imread(path)
             if frame is None:
                 continue
-            episode, frame_id, p1, p2 = parse_tags(path)
-            annotate(frame, frame_id, p1, p2)
+            episode, frame_id, p1, p2, p1_valid, p2_valid = parse_tags(path)
+            annotate(frame, frame_id, p1, p2, p1_valid, p2_valid)
             writer.write(frame)
             writer_csv.writerow(
                 {

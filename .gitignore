@@ -243,3 +243,6 @@ tag-mapping.json
 
 # Custom BYOD build rayci yaml file
 .buildkite/release/custom_byod_build.rayci.yml
+
+recordings/
+footsies_binary/

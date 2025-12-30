@@ -1,8 +1,10 @@
 import argparse
 import collections
 import time
+import csv
 from pathlib import Path
 from typing import Any, Dict, Optional
+from datetime import datetime
 
 import numpy as np
 from scipy import special
@@ -17,6 +19,7 @@ from ray.rllib.examples.envs.classes.multi_agent.footsies.game.constants import 
 )
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.numpy import convert_to_numpy
+from recorder.obs_controller import OBSController
 
 torch, _ = try_import_torch()
 
@@ -74,8 +77,8 @@ def get_human_action() -> int:
         return EnvActions.NONE
 
 
-# MAX_FPS = 30
-MAX_FPS = 120
+# MAX_FPS will be set based on OBS recording FPS, or default to 60
+MAX_FPS = 60
 
 
 def action_from_logits(logits: np.ndarray) -> int:
@@ -87,11 +90,13 @@ def play_local_episode(
     env: FootsiesEnv,
     modules: Dict[str, Any],
     module_states: Dict[str, Any],
+    max_fps: float,
     max_seq_len: int = 64,
 ) -> Dict[str, Any]:
 
     obs, _ = env.reset()
     result = {"p1_reward": 0, "p2_reward": 0}
+    action_logs = []
 
     terminateds = {"__all__": False}
     truncateds = {"__all__": False}
@@ -176,16 +181,29 @@ def play_local_episode(
                         last_actions[agent_id] = int(action)
 
                 actions[agent_id] = last_actions[agent_id]
-        frame += 1
 
         obs, reward, terminateds, truncateds, _ = env.step(actions)
+
+        # Log InputBits AFTER env.step() to match Unity's recording
+        # env.step() internally converts SPECIAL_CHARGE to ATTACK/BACK_ATTACK/FORWARD_ATTACK
+        # and modifies the actions dict in place
+        p1_bits = env.game.action_to_bits(actions["p1"], is_player_1=True)
+        p2_bits = env.game.action_to_bits(actions["p2"], is_player_1=False)
+
+        current_frame_log = {
+            "frame": frame,
+            "p1_action": int(p1_bits),
+            "p2_action": int(p2_bits)
+        }
+        action_logs.append(current_frame_log)
+        frame += 1
         result["p1_reward"] += reward["p1"]
         result["p2_reward"] += reward["p2"]
         result["p1_win"] = reward["p1"] >= 1
         result["p2_win"] = reward["p2"] >= 1
 
-        if MAX_FPS is not None:
-            time.sleep(1 / MAX_FPS)
+        if max_fps is not None and max_fps > 0:
+            time.sleep(1 / max_fps)
 
     if terminateds["__all__"] or truncateds["__all__"]:
         print(f"\nEpisode ended at frame {frame}")
@@ -193,6 +211,7 @@ def play_local_episode(
         print(f"  p1 win: {result['p1_win']}, p2 win: {result['p2_win']}")
         time.sleep(3)
 
+    result["action_logs"] = action_logs
     return result
 
 
@@ -302,6 +321,29 @@ def main():
         default=Path("/tmp/ray/binaries/footsies"),
         help="Directory to extract Footsies binaries (default: /tmp/ray/binaries/footsies)",
     )
+    parser.add_argument(
+        "--enable-obs",
+        action="store_true",
+        help="Enable OBS recording integration",
+    )
+    parser.add_argument(
+        "--obs-host",
+        type=str,
+        default="172.17.48.1",
+        help="OBS WebSocket host (default: 172.17.48.1)",
+    )
+    parser.add_argument(
+        "--obs-port",
+        type=int,
+        default=4455,
+        help="OBS WebSocket port (default: 4455)",
+    )
+    parser.add_argument(
+        "--obs-password",
+        type=str,
+        default=None,
+        help="OBS WebSocket password (required when --enable-obs is set)",
+    )
 
     args = parser.parse_args()
 
@@ -372,46 +414,124 @@ def main():
 
     env = FootsiesEnv(config=config, port=args.port)
 
+    # Create recordings directory
+    recordings_dir = Path("./recordings")
+    recordings_dir.mkdir(exist_ok=True)
+
+    # Create session timestamp for grouping files
+    session_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Initialize OBS controller if explicitly enabled
+    obs = None
+    max_fps = MAX_FPS  # Default FPS
+    if args.enable_obs:
+        if not args.obs_password:
+            print("Error: --obs-password is required when --enable-obs is set")
+            exit(1)
+        try:
+            obs = OBSController(args.obs_host, args.obs_port, args.obs_password)
+            obs.connect()
+
+            # Get OBS video settings to match FPS
+            video_settings = obs.get_video_settings()
+            max_fps = video_settings["fps"]
+            print(f"OBS enabled - Game FPS: {max_fps}")
+
+            # Set recording output directory
+            obs.set_record_directory(str(recordings_dir.absolute()))
+        except Exception as e:
+            print(f"Failed to connect to OBS: {e}")
+            exit(1)
+    else:
+        print(f"OBS disabled - Game FPS: {max_fps}")
+
     cumulative_results = collections.defaultdict(lambda: 0)
     num_games = 0
-    # while True:
-    while num_games < 3:
-        num_games += 1
+    all_action_logs = []
 
-        # Reset module states for new episode
-        for agent_id in module_states:
-            if modules[agent_id] is not None and hasattr(
-                modules[agent_id], "get_initial_state"
-            ):
-                # Reset to initial state for recurrent models
-                initial_state = modules[agent_id].get_initial_state()
-                module_states[agent_id] = {
-                    k: torch.from_numpy(v).unsqueeze(0)
-                    for k, v in initial_state.items()
-                }
-            else:
-                module_states[agent_id] = None
+    # Start recording once before all games
+    if obs is not None:
+        try:
+            obs.start_recording(wait_time=1.0)
+        except Exception as e:
+            print(f"Failed to start recording: {e}")
 
-        episode_results = play_local_episode(env, modules, module_states)
-        for k, v in episode_results.items():
-            cumulative_results[k] += v
+    try:
+        while num_games < 3:
+            num_games += 1
+            print()
+            print('=' * 60)
+            print()
 
-        # Get player names for display
-        def get_player_name(module_spec):
-            if isinstance(module_spec, dict):
-                return module_spec.get("module_id", "lstm")
-            return module_spec
+            # Reset module states for new episode
+            for agent_id in module_states:
+                if modules[agent_id] is not None and hasattr(
+                    modules[agent_id], "get_initial_state"
+                ):
+                    # Reset to initial state for recurrent models
+                    initial_state = modules[agent_id].get_initial_state()
+                    module_states[agent_id] = {
+                        k: torch.from_numpy(v).unsqueeze(0)
+                        for k, v in initial_state.items()
+                    }
+                else:
+                    module_states[agent_id] = None
 
-        p1_name = get_player_name(MODULES["p1"])
-        p2_name = get_player_name(MODULES["p2"])
-        p1_winrate = np.round(cumulative_results["p1_win"] / num_games, 2)
+            # Play the episode
+            episode_results = play_local_episode(env, modules, module_states, max_fps)
+            action_logs = episode_results.pop("action_logs", [])
+            all_action_logs.extend(action_logs)
 
-        print(
-            f"{num_games} games played. {p1_name} vs {p2_name} | "
-            f"{p1_name} winrate: {p1_winrate}"
-        )
+            # Update cumulative results
+            for k, v in episode_results.items():
+                cumulative_results[k] += v
 
-    env.close()
+            # Get player names for display
+            def get_player_name(module_spec):
+                if isinstance(module_spec, dict):
+                    return module_spec.get("module_id", "lstm")
+                return module_spec
+
+            p1_name = get_player_name(MODULES["p1"])
+            p2_name = get_player_name(MODULES["p2"])
+            p1_winrate = np.round(cumulative_results["p1_win"] / num_games, 2)
+
+            print(
+                f"\n{num_games} games played. {p1_name} vs {p2_name} | "
+                f"{p1_name} winrate: {p1_winrate}"
+            )
+
+    finally:
+        # Stop recording once after all games
+        if obs is not None:
+            try:
+                output_path = obs.stop_recording(wait_time=2.0)
+                if output_path:
+                    print(f"\nVideo: {output_path}")
+            except Exception as e:
+                print(f"Failed to stop recording: {e}")
+
+        # Save all action logs to a single CSV file
+        csv_filename = f"footsies_{session_timestamp}.csv"
+        csv_path = recordings_dir / csv_filename
+        with open(csv_path, "w", newline="") as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=["frame", "p1_action", "p2_action"])
+            csv_writer.writeheader()
+            for log in all_action_logs:
+                csv_writer.writerow({
+                    "frame": log["frame"],
+                    "p1_action": log["p1_action"],
+                    "p2_action": log["p2_action"]
+                })
+        print(f"CSV: {csv_filename}")
+
+        # Disconnect from OBS if connected
+        if obs is not None:
+            try:
+                obs.disconnect()
+            except Exception as e:
+                print(f"Error disconnecting from OBS: {e}")
+        env.close()
 
 
 if __name__ == "__main__":
