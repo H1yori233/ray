@@ -42,8 +42,10 @@ MODULES = {
     #     "checkpoint": "/root/ray_results/PPO_2025-11-11_09-47-55/PPO_FootsiesEnv_7f7d0_00000_0_2025-11-11_09-47-55/checkpoint_000081",
     #     "module_id": "lstm_v6",
     # },
-    "p1": "~/ray_results/PPO_2025-11-11_09-47-55/PPO_FootsiesEnv_7f7d0_00000_0_2025-11-11_09-47-55/checkpoint_000081",
-    "p2": "~/ray_results/PPO_2025-11-11_09-47-55/PPO_FootsiesEnv_7f7d0_00000_0_2025-11-11_09-47-55/checkpoint_000080",
+    "p1": "sticky_random",
+    # "p1": "~/ray_results/PPO_2025-11-11_09-47-55/PPO_FootsiesEnv_7f7d0_00000_0_2025-11-11_09-47-55/checkpoint_000081",
+    # "p2": "~/ray_results/PPO_2025-11-11_09-47-55/PPO_FootsiesEnv_7f7d0_00000_0_2025-11-11_09-47-55/checkpoint_000080",
+    "p2": "noop",
 }
 
 # Check if any player is human
@@ -63,18 +65,37 @@ def get_human_action() -> int:
     pygame.event.pump()
     keys = pygame.key.get_pressed()
 
-    if keys[pygame.K_a] and keys[pygame.K_SPACE]:
-        return EnvActions.BACK_ATTACK
-    elif keys[pygame.K_d] and keys[pygame.K_SPACE]:
-        return EnvActions.FORWARD_ATTACK
-    elif keys[pygame.K_a]:
+    # Movement only: no attack inputs
+    if keys[pygame.K_a]:
         return EnvActions.BACK
     elif keys[pygame.K_d]:
         return EnvActions.FORWARD
-    elif keys[pygame.K_SPACE]:
-        return EnvActions.ATTACK
     else:
         return EnvActions.NONE
+
+
+class StickyRandomController:
+    def __init__(self, min_duration=1, max_duration=3):
+        self.min_duration = min_duration
+        self.max_duration = max_duration
+        self.current_action = None
+        self.frames_remaining = 0
+    
+    def get_action(self) -> int:
+        if self.frames_remaining <= 0:
+            self.current_action = np.random.randint(0, 3)
+            self.frames_remaining = np.random.randint(
+                self.min_duration, self.max_duration + 1
+            )
+        
+        self.frames_remaining -= 1
+        return self.current_action
+    
+    def reset(self):
+        self.current_action = None
+        self.frames_remaining = 0
+
+sticky_controllers: Dict[str, StickyRandomController] = {}
 
 
 # MAX_FPS will be set based on OBS recording FPS, or default to 60
@@ -118,6 +139,7 @@ def play_local_episode(
             is_human = module_spec == "human"
             is_random = module_spec == "random"
             is_noop = module_spec == "noop"
+            is_sticky_random = module_spec == "sticky_random"
 
             # For human agents, get action every frame
             if is_human:
@@ -132,9 +154,13 @@ def play_local_episode(
 
                 if frame % MODEL_FRAME_SKIP == 0:
                     if is_random:
-                        last_actions[agent_id] = env.action_space[agent_id].sample()
+                        last_actions[agent_id] = np.random.randint(0, 3)
                     elif is_noop:
                         last_actions[agent_id] = EnvActions.NONE
+                    elif is_sticky_random:
+                        if agent_id not in sticky_controllers:
+                            sticky_controllers[agent_id] = StickyRandomController()
+                        last_actions[agent_id] = sticky_controllers[agent_id].get_action()
                     else:
                         rl_module = modules[agent_id]
 
@@ -178,6 +204,8 @@ def play_local_episode(
 
                         # Sample
                         action = action_from_logits(logits_vec)
+                        # Movement only: restrict to NONE=0, BACK=1, FORWARD=2
+                        action = min(action, 2)
                         last_actions[agent_id] = int(action)
 
                 actions[agent_id] = last_actions[agent_id]
@@ -220,14 +248,14 @@ def load_module(module_spec, agent_id: str) -> Optional[RLModule]:
 
     Args:
         module_spec: Can be:
-            - A string: "human", "random", "noop"
+            - A string: "human", "random", "noop", "sticky_random"
             - A dict: {"checkpoint": "path", "module_id": "lstm_v0"}
         agent_id: The agent ID this module is for
 
     Returns:
         RLModule if a checkpoint is loaded, None otherwise
     """
-    if isinstance(module_spec, str) and module_spec in ["human", "random", "noop"]:
+    if isinstance(module_spec, str) and module_spec in ["human", "random", "noop", "sticky_random"]:
         return None
 
     # Handle dict format: {"checkpoint": "...", "module_id": "..."}
@@ -402,8 +430,8 @@ def main():
 
     # Use the same config as training for consistency
     config = {
-        "frame_skip": 4,
-        "observation_delay": 16,
+        "frame_skip": 12,
+        "observation_delay": 12,
         "max_t": 1000,
         "reward_guard_break": True,
         "host": "localhost",
@@ -476,6 +504,9 @@ def main():
                     }
                 else:
                     module_states[agent_id] = None
+
+            for controller in sticky_controllers.values():
+                controller.reset()
 
             # Play the episode
             episode_results = play_local_episode(env, modules, module_states, max_fps)

@@ -7,13 +7,31 @@ from pathlib import Path
 SRC_DIR = "recordings"
 DST_DIR = "recordings/clean"
 THRESHOLD = 500
+FRAME_SKIP = 12
 
 def parse_filename(filename):
+    # episode{ep}_{frame}_{p1In}_{p2In}_{p1Val}_{p2Val}.png
     try:
         parts = os.path.splitext(filename)[0].split('_')
-        return int(parts[4]) if len(parts) >= 6 else None
+        if len(parts) >= 6:
+            return {
+                'episode': parts[0],
+                'frame': int(parts[1]),
+                'p1_input': parts[2],
+                'p2_input': parts[3],
+                'p1_valid': int(parts[4]),
+                'p2_valid': parts[5]
+            }
+        return None
     except ValueError:
         return None
+
+def make_new_filename(meta):
+    # Convert frame_id to step_id: (frame - 11) // 12
+    step_id = (meta['frame'] - 11) // FRAME_SKIP
+    # episode2 -> 0, episode3 -> 1
+    episode_num = int(meta['episode'].replace('episode', '')) - 2
+    return f"{episode_num}_{step_id:06d}_{meta['p1_input']}_{meta['p2_input']}_{meta['p1_valid']}_{meta['p2_valid']}.png"
 
 def has_text_overlay(image_path):
     img = cv2.imread(str(image_path))
@@ -41,13 +59,14 @@ count_skipped = 0
 
 for filename in files:
     filepath = src_path / filename
-    p1_valid = parse_filename(filename)
+    meta = parse_filename(filename)
     
-    if p1_valid is None or p1_valid == 0 or has_text_overlay(filepath):
+    if meta is None or meta['p1_valid'] == 0 or has_text_overlay(filepath):
         count_skipped += 1
         continue
     
-    shutil.move(filepath, dst_path / filename)
+    new_filename = make_new_filename(meta)
+    shutil.move(filepath, dst_path / new_filename)
     count_moved += 1
 
 print(f"Moved: {count_moved}, Skipped: {count_skipped}")
