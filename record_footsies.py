@@ -19,7 +19,6 @@ from ray.rllib.examples.envs.classes.multi_agent.footsies.game.constants import 
 )
 from ray.rllib.utils.framework import try_import_torch
 from ray.rllib.utils.numpy import convert_to_numpy
-from recorder.obs_controller import OBSController
 
 torch, _ = try_import_torch()
 
@@ -75,30 +74,39 @@ def get_human_action() -> int:
 
 
 class StickyRandomController:
-    def __init__(self, min_duration=1, max_duration=3):
+    def __init__(self, min_duration=1, max_duration=3, attack_prob=0.05, attack_enabled=True):
         self.min_duration = min_duration
         self.max_duration = max_duration
+        self.attack_prob = attack_prob
+        self.attack_enabled = attack_enabled
         self.current_action = None
         self.frames_remaining = 0
+        self.action_weights = [0.5, 0.25, 0.25]
+        self.actions = [EnvActions.NONE, EnvActions.BACK, EnvActions.FORWARD]
     
     def get_action(self) -> int:
         if self.frames_remaining <= 0:
-            self.current_action = np.random.randint(0, 3)
+            self.current_action = np.random.choice(self.actions, p=self.action_weights)
             self.frames_remaining = np.random.randint(
                 self.min_duration, self.max_duration + 1
             )
+            if self.current_action == EnvActions.NONE and self.attack_enabled:
+                if np.random.random() < self.attack_prob:
+                    self.current_action = EnvActions.ATTACK
+                    self.frames_remaining = 1
         
         self.frames_remaining -= 1
         return self.current_action
     
-    def reset(self):
+    def reset(self, attack_enabled=None):
         self.current_action = None
         self.frames_remaining = 0
+        if attack_enabled is not None:
+            self.attack_enabled = attack_enabled
 
 sticky_controllers: Dict[str, StickyRandomController] = {}
 
 
-# MAX_FPS will be set based on OBS recording FPS, or default to 60
 MAX_FPS = 60
 
 
@@ -349,29 +357,6 @@ def main():
         default=Path("/tmp/ray/binaries/footsies"),
         help="Directory to extract Footsies binaries (default: /tmp/ray/binaries/footsies)",
     )
-    parser.add_argument(
-        "--enable-obs",
-        action="store_true",
-        help="Enable OBS recording integration",
-    )
-    parser.add_argument(
-        "--obs-host",
-        type=str,
-        default="172.17.48.1",
-        help="OBS WebSocket host (default: 172.17.48.1)",
-    )
-    parser.add_argument(
-        "--obs-port",
-        type=int,
-        default=4455,
-        help="OBS WebSocket port (default: 4455)",
-    )
-    parser.add_argument(
-        "--obs-password",
-        type=str,
-        default=None,
-        help="OBS WebSocket password (required when --enable-obs is set)",
-    )
 
     args = parser.parse_args()
 
@@ -448,41 +433,11 @@ def main():
 
     # Create session timestamp for grouping files
     session_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    # Initialize OBS controller if explicitly enabled
-    obs = None
-    max_fps = MAX_FPS  # Default FPS
-    if args.enable_obs:
-        if not args.obs_password:
-            print("Error: --obs-password is required when --enable-obs is set")
-            exit(1)
-        try:
-            obs = OBSController(args.obs_host, args.obs_port, args.obs_password)
-            obs.connect()
-
-            # Get OBS video settings to match FPS
-            video_settings = obs.get_video_settings()
-            max_fps = video_settings["fps"]
-            print(f"OBS enabled - Game FPS: {max_fps}")
-
-            # Set recording output directory
-            obs.set_record_directory(str(recordings_dir.absolute()))
-        except Exception as e:
-            print(f"Failed to connect to OBS: {e}")
-            exit(1)
-    else:
-        print(f"OBS disabled - Game FPS: {max_fps}")
+    max_fps = MAX_FPS
 
     cumulative_results = collections.defaultdict(lambda: 0)
     num_games = 0
     all_action_logs = []
-
-    # Start recording once before all games
-    if obs is not None:
-        try:
-            obs.start_recording(wait_time=1.0)
-        except Exception as e:
-            print(f"Failed to start recording: {e}")
 
     try:
         while num_games < 3:
@@ -505,8 +460,9 @@ def main():
                 else:
                     module_states[agent_id] = None
 
+            attack_enabled = (num_games % 3 != 0)
             for controller in sticky_controllers.values():
-                controller.reset()
+                controller.reset(attack_enabled=attack_enabled)
 
             # Play the episode
             episode_results = play_local_episode(env, modules, module_states, max_fps)
@@ -531,17 +487,7 @@ def main():
                 f"\n{num_games} games played. {p1_name} vs {p2_name} | "
                 f"{p1_name} winrate: {p1_winrate}"
             )
-
     finally:
-        # Stop recording once after all games
-        if obs is not None:
-            try:
-                output_path = obs.stop_recording(wait_time=2.0)
-                if output_path:
-                    print(f"\nVideo: {output_path}")
-            except Exception as e:
-                print(f"Failed to stop recording: {e}")
-
         # Save all action logs to a single CSV file
         csv_filename = f"footsies_{session_timestamp}.csv"
         csv_path = recordings_dir / csv_filename
@@ -555,13 +501,6 @@ def main():
                     "p2_action": log["p2_action"]
                 })
         print(f"CSV: {csv_filename}")
-
-        # Disconnect from OBS if connected
-        if obs is not None:
-            try:
-                obs.disconnect()
-            except Exception as e:
-                print(f"Error disconnecting from OBS: {e}")
         env.close()
 
 

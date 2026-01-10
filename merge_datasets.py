@@ -42,13 +42,13 @@ def main():
         
         # 1. Delete all CSV files in round dir
         for csv_file in round_dir.glob("*.csv"):
-            print(f"Delete CSV: {csv_file}")
+            # print(f"Delete CSV: {csv_file}")
             csv_file.unlink()
             total_deleted_csv += 1
         
         # 2. Delete all PNG files in round dir (not in clean/)
         for png_file in round_dir.glob("*.png"):
-            print(f"Delete PNG: {png_file}")
+            # print(f"Delete PNG: {png_file}")
             png_file.unlink()
             total_deleted_png += 1
         
@@ -75,7 +75,7 @@ def main():
         # 5. Remove empty round directory
         if not any(round_dir.iterdir()):
             round_dir.rmdir()
-            print(f"Removed empty dir: {round_dir}")
+            # print(f"Removed empty dir: {round_dir}")
     
     print("-" * 40)
     print(f"Deleted CSV: {total_deleted_csv}")

@@ -61,7 +61,8 @@ for filename in files:
     filepath = src_path / filename
     meta = parse_filename(filename)
     
-    if meta is None or meta['p1_valid'] == 0 or has_text_overlay(filepath):
+    # if meta is None or meta['p1_valid'] == 0 or has_text_overlay(filepath):
+    if meta is None or has_text_overlay(filepath):
         count_skipped += 1
         continue
     
