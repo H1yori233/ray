@@ -94,7 +94,7 @@ class StickyRandomController:
             if self.current_action == EnvActions.NONE and self.attack_enabled:
                 if np.random.random() < self.attack_prob:
                     self.current_action = EnvActions.ATTACK
-                    self.frames_remaining = 1
+                    self.frames_remaining = 2
         
         self.frames_remaining -= 1
         return self.current_action
@@ -441,7 +441,7 @@ def main():
     all_action_logs = []
 
     try:
-        while num_games < 3:
+        while num_games < 12:
             num_games += 1
             print()
             print('=' * 60)
