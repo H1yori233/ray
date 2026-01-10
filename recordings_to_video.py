@@ -96,7 +96,7 @@ def main():
     if first is None:
         raise SystemExit(f"failed to read {image_paths[0]}")
     height, width = first.shape[:2]
-    fps = 15
+    fps = 25
     writer = cv2.VideoWriter(
         os.path.join("recordings", "recordings.mp4"),
         cv2.VideoWriter_fourcc(*"mp4v"),

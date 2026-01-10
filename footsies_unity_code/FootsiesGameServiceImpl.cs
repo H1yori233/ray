@@ -10,7 +10,7 @@ namespace Footsies
 	// Token: 0x0200003B RID: 59
 	public class FootsiesGameServiceImpl : FootsiesGameService.FootsiesGameServiceBase
 	{
-		// Token: 0x060001DC RID: 476 RVA: 0x00009A30 File Offset: 0x00007C30
+		// Token: 0x060001DC RID: 476
 		public override Task<Empty> StartGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -36,7 +36,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DD RID: 477 RVA: 0x00009A90 File Offset: 0x00007C90
+		// Token: 0x060001DD RID: 477
 		public override Task<Empty> ResetGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -57,7 +57,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DE RID: 478 RVA: 0x00009AF0 File Offset: 0x00007CF0
+		// Token: 0x060001DE RID: 478
 		public override Task<BoolValue> IsReady(Empty request, ServerCallContext context)
 		{
 			Task<BoolValue> task;
@@ -86,13 +86,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001DF RID: 479 RVA: 0x00003C40 File Offset: 0x00001E40
+		// Token: 0x060001DF RID: 479
 		private bool CheckIfReady()
 		{
 			return Singleton<GameManager>.Instance != null && this.battleCore != null;
 		}
 
-		// Token: 0x060001E0 RID: 480 RVA: 0x00009B68 File Offset: 0x00007D68
+		// Token: 0x060001E0 RID: 480
 		public override Task<GameState> StepNFrames(StepInput request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -149,7 +149,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E1 RID: 481 RVA: 0x00009BF4 File Offset: 0x00007DF4
+		// Token: 0x060001E1 RID: 481
 		public override Task<GameState> GetState(Empty request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -181,7 +181,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E2 RID: 482 RVA: 0x00009C6C File Offset: 0x00007E6C
+		// Token: 0x060001E2 RID: 482
 		public override Task<EncodedGameState> GetEncodedState(Empty request, ServerCallContext context)
 		{
 			Task<EncodedGameState> task;
@@ -213,13 +213,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E3 RID: 483 RVA: 0x00003C5D File Offset: 0x00001E5D
+		// Token: 0x060001E3 RID: 483
 		private void EnqueueToMainThread(Action action)
 		{
 			UnityMainThreadDispatcher.Instance.Enqueue(action);
 		}
 
-		// Token: 0x060001E4 RID: 484 RVA: 0x00009CE4 File Offset: 0x00007EE4
+		// Token: 0x060001E4 RID: 484
 		private void LogGameState(GameState gameState)
 		{
 			Debug.Log(string.Format("GameState - FrameCount: {0}, RoundState: {1}", gameState.FrameCount, gameState.RoundState));
@@ -227,7 +227,7 @@ namespace Footsies
 			this.LogPlayerState("Player 2", gameState.Player2);
 		}
 
-		// Token: 0x060001E5 RID: 485 RVA: 0x00009D38 File Offset: 0x00007F38
+		// Token: 0x060001E5 RID: 485
 		private void LogPlayerState(string playerName, PlayerState playerState)
 		{
 			Debug.Log(string.Concat(new string[]
@@ -252,13 +252,13 @@ namespace Footsies
 			}));
 		}
 
-		// Token: 0x060001E9 RID: 489 RVA: 0x00003CB7 File Offset: 0x00001EB7
+		// Token: 0x060001E9 RID: 489
 		private bool IsPlayerInputValid(PlayerState player)
 		{
 			return !player.IsInHitStun && (player.IsActionEnd || player.IsAlwaysCancelable);
 		}
 
-		// Token: 0x060001EA RID: 490 RVA: 0x00003CD3 File Offset: 0x00001ED3
+		// Token: 0x0600027C RID: 636
 		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int frameCount, bool p1Valid, bool p2Valid)
 		{
 			yield return new WaitForEndOfFrame();

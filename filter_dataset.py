@@ -27,11 +27,9 @@ def parse_filename(filename):
         return None
 
 def make_new_filename(meta):
-    # Convert frame_id to step_id: (frame - 11) // 12
-    step_id = (meta['frame'] - 11) // FRAME_SKIP
     # episode2 -> 0, episode3 -> 1
     episode_num = int(meta['episode'].replace('episode', '')) - 2
-    return f"{episode_num}_{step_id:06d}_{meta['p1_input']}_{meta['p2_input']}_{meta['p1_valid']}_{meta['p2_valid']}.png"
+    return f"{episode_num}_{meta['frame']:06d}_{meta['p1_input']}_{meta['p2_input']}_{meta['p1_valid']}_{meta['p2_valid']}.png"
 
 def has_text_overlay(image_path):
     img = cv2.imread(str(image_path))

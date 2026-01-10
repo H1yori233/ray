@@ -27,7 +27,8 @@ try:
 except ImportError:
     pygame = None
 
-MODEL_FRAME_SKIP = 1
+MODEL_FRAME_SKIP = 12
+
 MODULES = {
     # "p1": "human",
     # "p2": "random",
@@ -415,7 +416,7 @@ def main():
 
     # Use the same config as training for consistency
     config = {
-        "frame_skip": 12,
+        "frame_skip": 1,
         "observation_delay": 12,
         "max_t": 1000,
         "reward_guard_break": True,
