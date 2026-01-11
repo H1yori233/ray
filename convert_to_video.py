@@ -111,8 +111,33 @@ def main():
     metadata_path = os.path.join(args.output_dir, "metadata.json")
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)        
+    
+    # Generate videos2caption.json format
+    videos2caption = []
+    for m in metadata:
+        video_filename = os.path.basename(m['video_path'])
+        action_filename = os.path.basename(m['action_path'])
+        duration = m['num_frames'] / args.fps
+        videos2caption.append({
+            "path": video_filename,
+            "cap": [""],
+            "action_path": action_filename,
+            "resolution": {
+                "width": m['width'],
+                "height": m['height']
+            },
+            "num_frames": m['num_frames'],
+            "fps": args.fps,
+            "duration": duration
+        })
+    
+    videos2caption_path = os.path.join(args.output_dir, "videos2caption.json")
+    with open(videos2caption_path, 'w') as f:
+        json.dump(videos2caption, f, indent=4)
+    
     print(f"Done! Processed {len(metadata)} valid episodes.")
     print(f"Metadata saved to {metadata_path}")
+    print(f"Videos2caption saved to {videos2caption_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

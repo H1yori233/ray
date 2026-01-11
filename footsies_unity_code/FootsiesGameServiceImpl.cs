@@ -24,6 +24,8 @@ namespace Footsies
 						return;
 					}
 					this.episodeNumber++;
+					this.screenshotIndex = 0;
+					Time.captureFramerate = 60;
 					Singleton<GameManager>.Instance.StartGame();
 				});
 				result = Task.FromResult<Empty>(new Empty());
@@ -136,8 +138,8 @@ namespace Footsies
 					this.battleCore.ClearP1InputData();
 					this.battleCore.ClearP2InputData();
 					GameState gameState2 = this.battleCore.GetGameState();
-					UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine(num, num2, (int)gameState2.FrameCount, p1Valid, p2Valid));
-					taskCompletionSource.SetResult(gameState2);
+					UnityMainThreadDispatcher.Instance.StartCoroutine(this.CaptureScreenshotCoroutine(num, num2, this.screenshotIndex, p1Valid, p2Valid, taskCompletionSource, gameState2));
+					this.screenshotIndex++;
 				});
 				task = taskCompletionSource.Task;
 			}
@@ -258,16 +260,17 @@ namespace Footsies
 			return !player.IsInHitStun && (player.IsActionEnd || player.IsAlwaysCancelable);
 		}
 
-		// Token: 0x0600027C RID: 636
-		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int frameCount, bool p1Valid, bool p2Valid)
+		// Token: 0x06000264 RID: 612
+		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int stepIndex, bool p1Valid, bool p2Valid, TaskCompletionSource<GameState> tcs, GameState resultState)
 		{
 			yield return new WaitForEndOfFrame();
+			Texture2D texture2D = null;
 			try
 			{
 				string path = string.Format("episode{0}_{1:D06}_{2}_{3}_{4}_{5}.png", new object[]
 				{
 					this.episodeNumber,
-					frameCount,
+					stepIndex,
 					p1InputBits,
 					p2InputBits,
 					p1Valid ? 1 : 0,
@@ -281,18 +284,25 @@ namespace Footsies
 				string path2 = Path.Combine(text, path);
 				int width = Screen.width;
 				int height = Screen.height;
-				Texture2D texture2D = new Texture2D(width, height, TextureFormat.RGB24, false);
+				texture2D = new Texture2D(width, height, TextureFormat.RGB24, false);
 				texture2D.ReadPixels(new Rect(0f, 0f, (float)width, (float)height), 0, 0);
 				texture2D.Apply();
 				byte[] bytes = texture2D.EncodeToPNG();
 				File.WriteAllBytes(path2, bytes);
-				UnityEngine.Object.Destroy(texture2D);
 				yield break;
 			}
 			catch (Exception arg)
 			{
 				Debug.LogError(string.Format("CaptureScreenshot failed: {0}", arg));
 				yield break;
+			}
+			finally
+			{
+				if (texture2D != null)
+				{
+					UnityEngine.Object.Destroy(texture2D);
+				}
+				tcs.SetResult(resultState);
 			}
 			yield break;
 		}
@@ -305,5 +315,8 @@ namespace Footsies
 
 		// Token: 0x04000155 RID: 341
 		private int episodeNumber;
+
+		// Token: 0x040001BB RID: 443
+		private int screenshotIndex;
 	}
 }

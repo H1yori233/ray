@@ -244,8 +244,8 @@ def play_local_episode(
 
     if terminateds["__all__"] or truncateds["__all__"]:
         print(f"\nEpisode ended at frame {frame}")
-        print(f"  p1 reward: {result['p1_reward']}, p2 reward: {result['p2_reward']}")
-        print(f"  p1 win: {result['p1_win']}, p2 win: {result['p2_win']}")
+        # print(f"  p1 reward: {result['p1_reward']}, p2 reward: {result['p2_reward']}")
+        # print(f"  p1 win: {result['p1_win']}, p2 win: {result['p2_win']}")
         time.sleep(3)
 
     result["action_logs"] = action_logs
@@ -443,9 +443,9 @@ def main():
     try:
         while num_games < 12:
             num_games += 1
-            print()
+            # print()
             print('=' * 60)
-            print()
+            # print()
 
             # Reset module states for new episode
             for agent_id in module_states:
