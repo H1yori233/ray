@@ -38,19 +38,29 @@ def process_episode(episode_data):
         segment_start_idx += 1
     
     valid_frames = frames_info[segment_start_idx:]
-    if len(valid_frames) < 10:
+    if len(valid_frames) < 96:
         return []
 
     results = []
-    # Calculate number of parts based on max_frames
-    num_parts = int(np.ceil(len(valid_frames) / args.max_frames))
+    chunk_size = 96
+    video_length = 77
+    offset = 11
     
-    for part_idx in range(num_parts):
-        start = part_idx * args.max_frames
-        end = min((part_idx + 1) * args.max_frames, len(valid_frames))
-        chunk_frames = valid_frames[start:end]
+    num_chunks = len(valid_frames) // chunk_size
+    
+    for part_idx in range(num_chunks):
+        chunk_start = part_idx * chunk_size
+        chunk_end = chunk_start + chunk_size
+        extract_start = chunk_start + offset
+        extract_end = extract_start + video_length
+
+        print(f"Processing episode {episode_id}, part {part_idx}: {extract_start} - {extract_end}")
+        if extract_end > len(valid_frames):
+            break  # Not enough frames
         
-        if len(chunk_frames) < 10:
+        chunk_frames = valid_frames[extract_start:extract_end]
+        
+        if len(chunk_frames) != 77:
             continue
 
         output_video_path = os.path.join(args.output_dir, "videos", f"episode_{episode_id:03d}_part_{part_idx:03d}.mp4")
@@ -58,6 +68,7 @@ def process_episode(episode_data):
         
         actions = np.array([f['action'] for f in chunk_frames], dtype=np.int8)
         np.save(output_action_path, actions)
+        print(f"Action: {actions[0]}, {actions[1:5]}, {actions[6:10]} ... {actions[-4:]}")
 
         first_img = cv2.imread(chunk_frames[0]['path'])
         height, width, layers = first_img.shape

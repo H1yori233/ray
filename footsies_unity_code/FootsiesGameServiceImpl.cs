@@ -10,7 +10,7 @@ namespace Footsies
 	// Token: 0x0200003B RID: 59
 	public class FootsiesGameServiceImpl : FootsiesGameService.FootsiesGameServiceBase
 	{
-		// Token: 0x060001DC RID: 476
+		// Token: 0x060001DC RID: 476 RVA: 0x00009A04 File Offset: 0x00007C04
 		public override Task<Empty> StartGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -25,7 +25,6 @@ namespace Footsies
 					}
 					this.episodeNumber++;
 					this.screenshotIndex = 0;
-					Time.captureFramerate = 60;
 					Singleton<GameManager>.Instance.StartGame();
 				});
 				result = Task.FromResult<Empty>(new Empty());
@@ -38,7 +37,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DD RID: 477
+		// Token: 0x060001DD RID: 477 RVA: 0x00009A64 File Offset: 0x00007C64
 		public override Task<Empty> ResetGame(Empty request, ServerCallContext context)
 		{
 			Task<Empty> result;
@@ -59,7 +58,7 @@ namespace Footsies
 			return result;
 		}
 
-		// Token: 0x060001DE RID: 478
+		// Token: 0x060001DE RID: 478 RVA: 0x00009AC4 File Offset: 0x00007CC4
 		public override Task<BoolValue> IsReady(Empty request, ServerCallContext context)
 		{
 			Task<BoolValue> task;
@@ -88,13 +87,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001DF RID: 479
+		// Token: 0x060001DF RID: 479 RVA: 0x00003C40 File Offset: 0x00001E40
 		private bool CheckIfReady()
 		{
 			return Singleton<GameManager>.Instance != null && this.battleCore != null;
 		}
 
-		// Token: 0x060001E0 RID: 480
+		// Token: 0x060001E0 RID: 480 RVA: 0x00009B3C File Offset: 0x00007D3C
 		public override Task<GameState> StepNFrames(StepInput request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -151,7 +150,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E1 RID: 481
+		// Token: 0x060001E1 RID: 481 RVA: 0x00009BC8 File Offset: 0x00007DC8
 		public override Task<GameState> GetState(Empty request, ServerCallContext context)
 		{
 			Task<GameState> task;
@@ -183,7 +182,7 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E2 RID: 482
+		// Token: 0x060001E2 RID: 482 RVA: 0x00009C40 File Offset: 0x00007E40
 		public override Task<EncodedGameState> GetEncodedState(Empty request, ServerCallContext context)
 		{
 			Task<EncodedGameState> task;
@@ -215,13 +214,13 @@ namespace Footsies
 			return task;
 		}
 
-		// Token: 0x060001E3 RID: 483
+		// Token: 0x060001E3 RID: 483 RVA: 0x00003C5D File Offset: 0x00001E5D
 		private void EnqueueToMainThread(Action action)
 		{
 			UnityMainThreadDispatcher.Instance.Enqueue(action);
 		}
 
-		// Token: 0x060001E4 RID: 484
+		// Token: 0x060001E4 RID: 484 RVA: 0x00009CB8 File Offset: 0x00007EB8
 		private void LogGameState(GameState gameState)
 		{
 			Debug.Log(string.Format("GameState - FrameCount: {0}, RoundState: {1}", gameState.FrameCount, gameState.RoundState));
@@ -229,7 +228,7 @@ namespace Footsies
 			this.LogPlayerState("Player 2", gameState.Player2);
 		}
 
-		// Token: 0x060001E5 RID: 485
+		// Token: 0x060001E5 RID: 485 RVA: 0x00009D0C File Offset: 0x00007F0C
 		private void LogPlayerState(string playerName, PlayerState playerState)
 		{
 			Debug.Log(string.Concat(new string[]
@@ -254,17 +253,16 @@ namespace Footsies
 			}));
 		}
 
-		// Token: 0x060001E9 RID: 489
+		// Token: 0x060001E9 RID: 489 RVA: 0x00003CBE File Offset: 0x00001EBE
 		private bool IsPlayerInputValid(PlayerState player)
 		{
 			return !player.IsInHitStun && (player.IsActionEnd || player.IsAlwaysCancelable);
 		}
 
-		// Token: 0x06000264 RID: 612
+		// Token: 0x060001EA RID: 490 RVA: 0x00009FCC File Offset: 0x000081CC
 		private IEnumerator CaptureScreenshotCoroutine(int p1InputBits, int p2InputBits, int stepIndex, bool p1Valid, bool p2Valid, TaskCompletionSource<GameState> tcs, GameState resultState)
 		{
 			yield return new WaitForEndOfFrame();
-			Texture2D texture2D = null;
 			try
 			{
 				string path = string.Format("episode{0}_{1:D06}_{2}_{3}_{4}_{5}.png", new object[]
@@ -284,11 +282,12 @@ namespace Footsies
 				string path2 = Path.Combine(text, path);
 				int width = Screen.width;
 				int height = Screen.height;
-				texture2D = new Texture2D(width, height, TextureFormat.RGB24, false);
+				Texture2D texture2D = new Texture2D(width, height, TextureFormat.RGB24, false);
 				texture2D.ReadPixels(new Rect(0f, 0f, (float)width, (float)height), 0, 0);
 				texture2D.Apply();
 				byte[] bytes = texture2D.EncodeToPNG();
 				File.WriteAllBytes(path2, bytes);
+				UnityEngine.Object.Destroy(texture2D);
 				yield break;
 			}
 			catch (Exception arg)
@@ -298,10 +297,6 @@ namespace Footsies
 			}
 			finally
 			{
-				if (texture2D != null)
-				{
-					UnityEngine.Object.Destroy(texture2D);
-				}
 				tcs.SetResult(resultState);
 			}
 			yield break;
@@ -316,7 +311,7 @@ namespace Footsies
 		// Token: 0x04000155 RID: 341
 		private int episodeNumber;
 
-		// Token: 0x040001BB RID: 443
+		// Token: 0x04000156 RID: 342
 		private int screenshotIndex;
 	}
 }
