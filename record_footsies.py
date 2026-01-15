@@ -75,7 +75,7 @@ def get_human_action() -> int:
 
 
 class StickyRandomController:
-    def __init__(self, min_duration=1, max_duration=3, attack_prob=0.05, attack_enabled=True):
+    def __init__(self, min_duration=1, max_duration=2, attack_prob=0.05, attack_enabled=True):
         self.min_duration = min_duration
         self.max_duration = max_duration
         self.attack_prob = attack_prob
@@ -83,22 +83,38 @@ class StickyRandomController:
         self.current_action = None
         self.frames_remaining = 0
         self.action_weights = [0.5, 0.25, 0.25]
+        # self.action_weights = [1.0, 0.0, 0.0]
+        # self.action_weights = [0.0, 0.0, 1.0]
+        # self.action_weights = [0.0, 1.0, 0.0]
         self.actions = [EnvActions.NONE, EnvActions.BACK, EnvActions.FORWARD]
+        # self.actions = [EnvActions.BACK, EnvActions.NONE, EnvActions.FORWARD]
+        # self.actions = [EnvActions.BACK, EnvActions.FORWARD]
+        self.step_count = 0
+        self.action_index = 0
     
     def get_action(self) -> int:
         if self.frames_remaining <= 0:
-            self.current_action = np.random.choice(self.actions, p=self.action_weights)
+            if self.step_count < 4:
+                self.current_action = EnvActions.NONE
+                self.step_count += 1
+                self.frames_remaining = 0
+            else:
+                self.current_action = np.random.choice(self.actions, p=self.action_weights)
             self.frames_remaining = np.random.randint(
                 self.min_duration, self.max_duration + 1
             )
-            if self.current_action == EnvActions.NONE and self.attack_enabled:
-                if np.random.random() < self.attack_prob:
-                    self.current_action = EnvActions.ATTACK
-                    self.frames_remaining = 2
+            # else:
+            #     self.current_action = self.actions[self.action_index]
+            #     self.action_index = (self.action_index + 1) % len(self.actions)
+            #     self.frames_remaining = 2
+            # if self.current_action == EnvActions.NONE and self.attack_enabled:
+            #     if np.random.random() < self.attack_prob:
+            #         self.current_action = EnvActions.ATTACK
+            #         self.frames_remaining = 2
         
         self.frames_remaining -= 1
         return self.current_action
-    
+
     def reset(self, attack_enabled=None):
         self.current_action = None
         self.frames_remaining = 0
@@ -358,6 +374,18 @@ def main():
         default=Path("/tmp/ray/binaries/footsies"),
         help="Directory to extract Footsies binaries (default: /tmp/ray/binaries/footsies)",
     )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=960,
+        help="Screen width for the Unity game window",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=540,
+        help="Screen height for the Unity game window",
+    )
 
     args = parser.parse_args()
 
@@ -419,11 +447,14 @@ def main():
         "frame_skip": 1,
         "observation_delay": 12,
         "max_t": 1000,
+        # "max_t": 250,
         "reward_guard_break": True,
         "host": "localhost",
         "binary_to_download": args.binary_to_download,
         "binary_download_dir": str(args.binary_download_dir),
         "binary_extract_dir": str(args.binary_extract_dir),
+        "width": args.width,
+        "height": args.height,
     }
 
     env = FootsiesEnv(config=config, port=args.port)
@@ -441,7 +472,7 @@ def main():
     all_action_logs = []
 
     try:
-        while num_games < 12:
+        while num_games < 1:
             num_games += 1
             # print()
             print('=' * 60)

@@ -39,6 +39,7 @@ def process_episode(episode_data):
     
     valid_frames = frames_info[segment_start_idx:]
     if len(valid_frames) < 96:
+        print(f"Episode {episode_id} has less than 96 frames: {len(valid_frames)}, skipping.")
         return []
 
     results = []
@@ -68,7 +69,7 @@ def process_episode(episode_data):
         
         actions = np.array([f['action'] for f in chunk_frames], dtype=np.int8)
         np.save(output_action_path, actions)
-        print(f"Action: {actions[0]}, {actions[1:5]}, {actions[6:10]} ... {actions[-4:]}")
+        print(f"Episode {episode_id} part {part_idx}: Action: {actions[0]}, {actions[1:5]}, {actions[6:10]} ... {actions[21:25]}, ... {actions[-4:]}")
 
         first_img = cv2.imread(chunk_frames[0]['path'])
         height, width, layers = first_img.shape

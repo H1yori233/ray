@@ -103,27 +103,37 @@ class FootsiesBinary:
         ):
             # For linux_server (headless), add -batchmode and -nographics flags
             # For linux_windowed, don't add these flags to allow window display
+            cmd_args = [str(game_binary_path), "--port", str(self.port)]
+
+            if self.config.get("width"):
+                cmd_args.extend(["-screen-width", str(self.config["width"])])
+            if self.config.get("height"):
+                cmd_args.extend(["-screen-height", str(self.config["height"])])
+
             if self.binary_to_download == "linux_server":
-                process = subprocess.Popen(
-                    [game_binary_path, "--port", str(self.port), "-batchmode", "-nographics"],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-            else:  # linux_windowed
-                process = subprocess.Popen(
-                    [game_binary_path, "--port", str(self.port)],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-        else:
+                cmd_args.extend(["-batchmode", "-nographics"])
+
             process = subprocess.Popen(
-                [
-                    "arch",
-                    "-x86_64",
-                    game_binary_path,
-                    "--port",
-                    str(self.port),
-                ],
+                cmd_args,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            cmd_args = [
+                "arch",
+                "-x86_64",
+                str(game_binary_path),
+                "--port",
+                str(self.port),
+            ]
+
+            if self.config.get("width"):
+                cmd_args.extend(["-screen-width", str(self.config["width"])])
+            if self.config.get("height"):
+                cmd_args.extend(["-screen-height", str(self.config["height"])])
+
+            process = subprocess.Popen(
+                cmd_args,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
